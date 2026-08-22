@@ -1,0 +1,142 @@
+@import 'leaflet/dist/leaflet.css';
+
+:root {
+  --color-primary: #02542d;
+  --color-primary-dark: #013b20;
+  --color-primary-light: #e5efe9;
+  --color-bg: #f5f7f6;
+  --color-surface: #ffffff;
+  --color-text: #1c2620;
+  --color-text-muted: #5b6b62;
+  --color-border: #dde4e0;
+
+  --color-critical: #c0392b;
+  --color-high: #e07b1a;
+  --color-moderate: #d4a017;
+  --color-low: #3f7a56;
+  --color-info: #4a6b8a;
+
+  --font-sans: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --radius: 8px;
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-sans);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+}
+
+button {
+  font-family: inherit;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.55rem 1.1rem;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+
+  &.btn-primary {
+    background: var(--color-primary);
+    color: #fff;
+    &:hover {
+      background: var(--color-primary-dark);
+    }
+    &:disabled {
+      background: #9db8ab;
+      cursor: not-allowed;
+    }
+  }
+
+  &.btn-outline {
+    background: transparent;
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+    &:hover {
+      background: var(--color-primary-light);
+    }
+  }
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+}
+
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-size: 0.9rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: #fff;
+  color: var(--color-text);
+  width: 100%;
+
+  &:focus {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 1px;
+    border-color: var(--color-primary);
+  }
+}
+
+label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  margin-bottom: 0.25rem;
+}
+
+.field {
+  margin-bottom: 1rem;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+
+  &.badge-critical { background: #fbeae8; color: var(--color-critical); }
+  &.badge-high { background: #fdf0e2; color: var(--color-high); }
+  &.badge-moderate { background: #fbf3d9; color: var(--color-moderate); }
+  &.badge-low { background: #e6f0ea; color: var(--color-low); }
+  &.badge-information { background: #e8eef4; color: var(--color-info); }
+}
+
+.error-text {
+  color: var(--color-critical);
+  font-size: 0.85rem;
+  margin-top: 0.35rem;
+}

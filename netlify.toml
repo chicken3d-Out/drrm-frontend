@@ -1,0 +1,9 @@
+[build]
+  command = "npm run build"
+  publish = "dist/web/browser"
+
+# SPA fallback so Angular's client-side routing doesn't 404 on refresh/deep links.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
