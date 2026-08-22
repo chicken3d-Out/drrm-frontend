@@ -45,6 +45,17 @@ export interface School {
   longitude: number | null;
 }
 
+export interface SchoolContact {
+  contact_type: string;
+  name: string | null;
+  phone: string | null;
+  email: string | null;
+}
+
+export interface SchoolDetail extends School {
+  contacts: SchoolContact[];
+}
+
 export interface PendingUser {
   id: string;
   email: string;

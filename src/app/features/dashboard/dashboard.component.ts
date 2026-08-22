@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import * as L from 'leaflet';
 import { ApiService } from '../../core/services/api.service';
 import { SocketService } from '../../core/services/socket.service';
-import { DisasterEvent, School } from '../../core/models/models';
+import { DisasterEvent, School, SchoolDetail } from '../../core/models/models';
 import { Subscription } from 'rxjs';
 
 const DISASTER_ICONS: Record<string, string> = {
@@ -270,9 +270,41 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
         fillColor: '#4a6b8a',
         fillOpacity: 0.6
       });
-      marker.bindPopup(`🏫 <strong>${s.name}</strong><br/>${s.municipality}`);
+      // Bind a quick placeholder immediately (so the popup opens instantly),
+      // then fetch the full record and swap in the detailed content.
+      marker.bindPopup(`🏫 <strong>${s.name}</strong><br/><em>Loading details…</em>`);
+      marker.on('popupopen', () => this.loadSchoolDetail(s.id, marker));
       marker.addTo(this.schoolsLayer);
     }
+  }
+
+  private async loadSchoolDetail(schoolId: string, marker: L.CircleMarker): Promise<void> {
+    try {
+      const detail = await this.api.get<SchoolDetail>(`/schools/${schoolId}`);
+      const contactsHtml = (detail.contacts ?? [])
+        .map((c) => `${this.contactLabel(c.contact_type)}: ${c.name ?? '—'}${c.phone ? ' · ' + c.phone : ''}`)
+        .join('<br/>');
+
+      const content = `
+        <strong>🏫 ${detail.name}</strong><br/>
+        <span style="color:#5b6b62;font-size:0.85em">${detail.school_id}</span><br/><br/>
+        <strong>Type:</strong> ${detail.school_type}<br/>
+        <strong>District:</strong> ${detail.district ?? '—'}<br/>
+        <strong>Municipality:</strong> ${detail.municipality}<br/>
+        <strong>Barangay:</strong> ${detail.barangay ?? '—'}<br/>
+        <strong>Status:</strong> ${detail.status}
+        ${contactsHtml ? `<br/><br/><strong>Contacts:</strong><br/>${contactsHtml}` : ''}
+      `;
+      marker.setPopupContent(content);
+    } catch {
+      marker.setPopupContent('Could not load school details.');
+    }
+  }
+
+  private contactLabel(type: string): string {
+    if (type === 'school_head') return 'School Head';
+    if (type === 'drrm_coordinator') return 'DRRM Coordinator';
+    return 'Office';
   }
 
   // ── Earthquake ripple animation ────────────────────────────────────────
