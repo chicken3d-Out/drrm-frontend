@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import * as L from 'leaflet';
 import { ApiService } from '../../core/services/api.service';
 import { SocketService } from '../../core/services/socket.service';
-import { DisasterEvent, School, SchoolDetail } from '../../core/models/models';
+import { DisasterEvent, School, SchoolDetail, AffectedSchool } from '../../core/models/models';
 import { Subscription } from 'rxjs';
 
 const DISASTER_ICONS: Record<string, string> = {
@@ -76,6 +76,13 @@ function parseMagnitude(warningLevel: string | null): number | null {
                 {{ radarPlaying() ? '⏸ Pause' : '▶ Play' }}
               </button>
               <span class="radar-time">{{ radarFrameLabel() }}</span>
+              <span class="radar-legend">
+                <span class="legend-chip" style="background:#4a90d9"></span> Light
+                <span class="legend-chip" style="background:#4ac94a"></span> Moderate
+                <span class="legend-chip" style="background:#f2c94c"></span> Heavy
+                <span class="legend-chip" style="background:#e05c2e"></span> Intense
+                <span class="legend-chip" style="background:#c0392b"></span> Extreme
+              </span>
             }
             <span class="hint">Click anywhere on the map for today's weather outlook</span>
           </div>
@@ -86,15 +93,39 @@ function parseMagnitude(warningLevel: string | null): number | null {
           <div class="panel-title">ACTIVE ALERTS</div>
           <div class="alerts-list">
             @for (ev of events(); track ev.id) {
-              <div class="alert-item" (click)="focusEvent(ev)">
-                <div class="alert-icon">{{ icon(ev.disaster_type) }}</div>
-                <div class="alert-body">
-                  <div class="alert-title">{{ ev.official_title }}</div>
-                  <div class="alert-meta">
-                    <span class="badge" [class]="'badge-' + priorityClass(ev)">{{ ev.source_agency }}</span>
-                    @if (ev.warning_level) { <span class="level">{{ ev.warning_level }}</span> }
+              <div class="alert-item">
+                <div class="alert-row" (click)="focusEvent(ev)">
+                  <div class="alert-icon">{{ icon(ev.disaster_type) }}</div>
+                  <div class="alert-body">
+                    <div class="alert-title">{{ ev.official_title }}</div>
+                    <div class="alert-meta">
+                      <span class="badge" [class]="'badge-' + priorityClass(ev)">{{ ev.source_agency }}</span>
+                      @if (ev.warning_level) { <span class="level">{{ ev.warning_level }}</span> }
+                    </div>
                   </div>
                 </div>
+                <button class="affected-toggle" (click)="toggleAffectedSchools(ev, $event)">
+                  🏫 {{ expandedEventId() === ev.id ? 'Hide' : 'Show' }} affected schools
+                </button>
+                @if (expandedEventId() === ev.id) {
+                  <div class="affected-list">
+                    @if (loadingAffected()) {
+                      <div class="affected-empty">Loading…</div>
+                    } @else if ((affectedSchoolsByEvent().get(ev.id) ?? []).length === 0) {
+                      <div class="affected-empty">No schools within range of this event.</div>
+                    } @else {
+                      @for (s of affectedSchoolsByEvent().get(ev.id); track s.id) {
+                        <div class="affected-school-row">
+                          <span class="badge" [class]="s.priority === 'high' ? 'badge-critical' : 'badge-moderate'">
+                            {{ s.priority === 'high' ? 'High' : 'Potential' }}
+                          </span>
+                          <span class="affected-name">{{ s.name }}</span>
+                          <span class="affected-dist">{{ s.distance_km | number: '1.1-1' }} km</span>
+                        </div>
+                      }
+                    }
+                  </div>
+                }
               </div>
             } @empty {
               <div class="empty">No active alerts at this time.</div>
@@ -121,19 +152,33 @@ function parseMagnitude(warningLevel: string | null): number | null {
     .map-toolbar { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.6rem; flex-wrap: wrap; }
     .map-toolbar .btn { padding: 0.4rem 0.75rem; font-size: 0.8rem; }
     .radar-time { font-size: 0.78rem; color: var(--color-text-muted); font-weight: 600; }
+    .radar-legend { display: flex; align-items: center; gap: 0.3rem; font-size: 0.72rem; color: var(--color-text-muted); }
+    .legend-chip { width: 10px; height: 10px; border-radius: 2px; display: inline-block; margin-left: 0.4rem; }
     .hint { font-size: 0.76rem; color: var(--color-text-muted); margin-left: auto; }
 
     .alerts-panel { padding: 1rem; max-height: 560px; overflow-y: auto; }
     .panel-title { font-size: 0.78rem; font-weight: 700; color: var(--color-text-muted); letter-spacing: 0.03em; margin-bottom: 0.75rem; }
 
-    .alert-item { display: flex; gap: 0.6rem; padding: 0.6rem 0; border-bottom: 1px solid var(--color-border); cursor: pointer; }
-    .alert-item:hover { background: var(--color-primary-light); }
+    .alert-item { border-bottom: 1px solid var(--color-border); padding: 0.4rem 0; }
     .alert-item:last-child { border-bottom: none; }
+    .alert-row { display: flex; gap: 0.6rem; padding: 0.2rem 0; cursor: pointer; }
+    .alert-row:hover { background: var(--color-primary-light); }
     .alert-icon { font-size: 1.3rem; }
     .alert-title { font-size: 0.88rem; font-weight: 600; }
     .alert-meta { display: flex; gap: 0.4rem; align-items: center; margin-top: 0.2rem; }
     .level { font-size: 0.78rem; color: var(--color-text-muted); }
     .empty { color: var(--color-text-muted); font-size: 0.85rem; padding: 1rem 0; text-align: center; }
+
+    .affected-toggle {
+      background: none; border: none; color: var(--color-primary); font-size: 0.76rem; font-weight: 600;
+      cursor: pointer; padding: 0.2rem 0 0.3rem 2rem;
+    }
+    .affected-toggle:hover { text-decoration: underline; }
+    .affected-list { padding-left: 2rem; padding-bottom: 0.4rem; display: flex; flex-direction: column; gap: 0.3rem; }
+    .affected-empty { font-size: 0.78rem; color: var(--color-text-muted); }
+    .affected-school-row { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; }
+    .affected-name { flex: 1; }
+    .affected-dist { color: var(--color-text-muted); font-size: 0.75rem; }
 
     .disclaimer { padding: 0.85rem 1rem; font-size: 0.78rem; color: var(--color-text-muted); }
   `]
@@ -145,6 +190,9 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   radarOn = signal(false);
   radarPlaying = signal(false);
   radarFrameLabel = signal('');
+  expandedEventId = signal<string | null>(null);
+  loadingAffected = signal(false);
+  affectedSchoolsByEvent = signal<Map<string, AffectedSchool[]>>(new Map());
 
   private map: L.Map | null = null;
   private eventsLayer: L.LayerGroup | null = null;
@@ -167,10 +215,12 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   async ngOnInit(): Promise<void> {
     await this.loadEvents();
     await this.loadSchools();
+    await this.loadAffectedSchoolsSummary();
 
     this.socketSub = this.socket.events$.subscribe((evt) => {
-      if (evt.type === 'disaster:new' || evt.type === 'disaster:updated') {
+      if (evt.type === 'disaster:new' || evt.type === 'disaster:updated' || evt.type === 'school:affected') {
         this.loadEvents();
+        this.loadAffectedSchoolsSummary();
       }
     });
   }
@@ -197,6 +247,36 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     const data = await this.api.get<School[]>('/schools', { municipality: '' });
     this.schools.set(data);
     this.plotSchools();
+  }
+
+  private async loadAffectedSchoolsSummary(): Promise<void> {
+    try {
+      const res = await this.api.get<{ count: number }>('/events/affected-schools/summary');
+      this.affectedSchoolsCount.set(res.count);
+    } catch {
+      // Non-critical — leave the previous value rather than showing an error.
+    }
+  }
+
+  async toggleAffectedSchools(ev: DisasterEvent, mouseEvent: MouseEvent): Promise<void> {
+    mouseEvent.stopPropagation(); // don't also trigger focusEvent's map pan/ripple
+    if (this.expandedEventId() === ev.id) {
+      this.expandedEventId.set(null);
+      return;
+    }
+    this.expandedEventId.set(ev.id);
+
+    if (!this.affectedSchoolsByEvent().has(ev.id)) {
+      this.loadingAffected.set(true);
+      try {
+        const schools = await this.api.get<AffectedSchool[]>(`/events/${ev.id}/affected-schools`);
+        const updated = new Map(this.affectedSchoolsByEvent());
+        updated.set(ev.id, schools);
+        this.affectedSchoolsByEvent.set(updated);
+      } finally {
+        this.loadingAffected.set(false);
+      }
+    }
   }
 
   private initMap(): void {
@@ -264,16 +344,22 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     this.schoolsLayer.clearLayers();
     for (const s of this.schools()) {
       if (s.latitude == null || s.longitude == null) continue;
+      const baseRadius = 7;
       const marker = L.circleMarker([s.latitude, s.longitude], {
-        radius: 4,
-        color: '#4a6b8a',
-        fillColor: '#4a6b8a',
-        fillOpacity: 0.6
+        radius: baseRadius,
+        color: '#ffffff',
+        weight: 1.5,
+        fillColor: '#2f6690',
+        fillOpacity: 0.85
       });
       // Bind a quick placeholder immediately (so the popup opens instantly),
       // then fetch the full record and swap in the detailed content.
       marker.bindPopup(`🏫 <strong>${s.name}</strong><br/><em>Loading details…</em>`);
       marker.on('popupopen', () => this.loadSchoolDetail(s.id, marker));
+      // Slightly grow on hover so small, closely-packed school clusters are
+      // easier to target with the mouse.
+      marker.on('mouseover', () => marker.setRadius(baseRadius + 3));
+      marker.on('mouseout', () => marker.setRadius(baseRadius));
       marker.addTo(this.schoolsLayer);
     }
   }
@@ -361,13 +447,23 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.map || !this.eventsLayer || !ev.track) return;
     const latlngs = ev.track.map((p) => L.latLng(p.lat, p.lon));
 
-    L.polyline(latlngs, { color: '#e07b1a', weight: 2, dashArray: '4 4' }).addTo(this.eventsLayer);
+    // Bold magenta/red track line (matches standard storm-tracker styling —
+    // e.g. Windy/JTWC-style maps) with a white halo underneath for contrast
+    // against both dark radar tiles and light basemap.
+    L.polyline(latlngs, { color: '#ffffff', weight: 6, opacity: 0.9 }).addTo(this.eventsLayer);
+    L.polyline(latlngs, { color: '#d6006e', weight: 3.5, opacity: 0.95 }).addTo(this.eventsLayer);
     for (const pt of latlngs) {
-      L.circleMarker(pt, { radius: 3, color: '#e07b1a', fillOpacity: 0.8 }).addTo(this.eventsLayer!);
+      L.circleMarker(pt, { radius: 5, color: '#ffffff', weight: 1.5, fillColor: '#d6006e', fillOpacity: 1 }).addTo(
+        this.eventsLayer!
+      );
     }
 
-    const stormIcon = L.divIcon({ html: '🌀', className: 'storm-icon', iconSize: [24, 24] });
-    const movingMarker = L.marker(latlngs[0], { icon: stormIcon }).addTo(this.eventsLayer);
+    const stormIcon = L.divIcon({
+      html: '<div style="font-size:26px;filter:drop-shadow(0 0 3px white) drop-shadow(0 0 3px white);">🌀</div>',
+      className: 'storm-icon',
+      iconSize: [36, 36]
+    });
+    const movingMarker = L.marker(latlngs[0], { icon: stormIcon, zIndexOffset: 1000 }).addTo(this.eventsLayer);
 
     const totalDurationMs = 4000;
     const segmentCount = latlngs.length - 1;
@@ -460,8 +556,12 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     const frame = this.radarFrames[index];
 
     this.radarLayer.clearLayers();
+    // Color scheme 4 = "The Weather Channel" palette (blue → green → yellow →
+    // orange → red), matching the legend shown in the toolbar. RainViewer
+    // supports schemes 0-8 if a different palette is ever preferred —
+    // see https://www.rainviewer.com/api.html for the full list.
     const tileLayer = L.tileLayer(`${this.radarHost}${frame.path}/256/{z}/{x}/{y}/4/1_1.png`, {
-      opacity: 0.6,
+      opacity: 0.75,
       attribution: 'Radar &copy; RainViewer'
     });
     tileLayer.addTo(this.radarLayer);
