@@ -563,11 +563,14 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     //
     // maxNativeZoom caps the zoom level actually requested from RainViewer's
     // tile server — beyond that, Leaflet upscales the highest available tile
-    // client-side instead of requesting a zoom level RainViewer doesn't serve
-    // (which otherwise surfaces as a "zoom level not supported" tile error).
+    // client-side instead of requesting a zoom level RainViewer doesn't serve.
+    // Per RainViewer's own docs, 7 is the actual maximum — confirmed via
+    // https://www.rainviewer.com/api/weather-maps-api.html (previously set to
+    // 8 here, which was one level too high and caused the "zoom level not
+    // supported" tile error).
     const tileLayer = L.tileLayer(`${this.radarHost}${frame.path}/256/{z}/{x}/{y}/4/1_1.png`, {
       opacity: 0.75,
-      maxNativeZoom: 8,
+      maxNativeZoom: 7,
       minNativeZoom: 0,
       attribution: 'Radar &copy; RainViewer'
     });
