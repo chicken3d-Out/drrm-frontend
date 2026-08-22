@@ -1,3 +1,9 @@
+export interface TrackPoint {
+  lon: number;
+  lat: number;
+  date: string;
+}
+
 export interface DisasterEvent {
   id: string;
   disaster_type: string;
@@ -12,6 +18,7 @@ export interface DisasterEvent {
   is_leyte_priority: boolean;
   latitude: number | null;
   longitude: number | null;
+  track: TrackPoint[] | null;
 }
 
 export interface AffectedSchool {
