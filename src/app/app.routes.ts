@@ -26,6 +26,11 @@ export const routes: Routes = [
         loadComponent: () => import('./features/schools/schools.component').then((m) => m.SchoolsComponent)
       },
       {
+        path: 'rainfall-report',
+        loadComponent: () =>
+          import('./features/rainfall-report/rainfall-report.component').then((m) => m.RainfallReportComponent)
+      },
+      {
         path: 'announcements',
         loadComponent: () =>
           import('./features/announcements/announcements.component').then((m) => m.AnnouncementsComponent)

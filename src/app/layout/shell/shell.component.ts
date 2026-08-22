@@ -18,6 +18,7 @@ import { SocketService } from '../../core/services/socket.service';
         <nav>
           <a routerLink="/dashboard" routerLinkActive="active">🏠 Dashboard</a>
           <a routerLink="/schools" routerLinkActive="active">🏫 Schools Directory</a>
+          <a routerLink="/rainfall-report" routerLinkActive="active">🌧 Rainfall Report</a>
           <a routerLink="/announcements" routerLinkActive="active">📢 Announcements</a>
           <a routerLink="/chat" routerLinkActive="active">💬 Group Chat</a>
           <a routerLink="/notifications" routerLinkActive="active">🔔 Notifications</a>

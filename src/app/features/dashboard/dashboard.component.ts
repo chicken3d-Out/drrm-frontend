@@ -560,9 +560,19 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     // orange → red), matching the legend shown in the toolbar. RainViewer
     // supports schemes 0-8 if a different palette is ever preferred —
     // see https://www.rainviewer.com/api.html for the full list.
+    //
+    // maxNativeZoom caps the zoom level actually requested from RainViewer's
+    // tile server — beyond that, Leaflet upscales the highest available tile
+    // client-side instead of requesting a zoom level RainViewer doesn't serve
+    // (which otherwise surfaces as a "zoom level not supported" tile error).
     const tileLayer = L.tileLayer(`${this.radarHost}${frame.path}/256/{z}/{x}/{y}/4/1_1.png`, {
       opacity: 0.75,
+      maxNativeZoom: 8,
+      minNativeZoom: 0,
       attribution: 'Radar &copy; RainViewer'
+    });
+    tileLayer.on('tileerror', () => {
+      // Non-fatal — a handful of edge tiles failing shouldn't break the layer.
     });
     tileLayer.addTo(this.radarLayer);
 
