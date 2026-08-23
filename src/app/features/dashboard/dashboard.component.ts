@@ -30,10 +30,54 @@ function openMeteoUrl(lat: number, lon: number): string {
   return `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=precipitation_probability_max,apparent_temperature_max,wind_speed_10m_max&timezone=auto`;
 }
 
+function openMeteoHourlyUrl(lat: number, lon: number): string {
+  return `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,precipitation_probability,cloud_cover,weather_code&timezone=Asia%2FManila&forecast_days=1`;
+}
+
+// DepEd Leyte Division Government Center — Brgy. Candahug, Palo, Leyte.
+// Coordinates are the barangay centroid (source: PhilAtlas census profile),
+// not a surveyed building point — accurate enough for weather purposes.
+const DEPED_LEYTE_HQ = { name: 'DepEd Leyte Government Center, Candahug, Palo', lat: 11.1791, lon: 125.0104 };
+
+// WMO weather codes (used by Open-Meteo) mapped to a simple icon + label.
+// Reference: https://open-meteo.com/en/docs (WMO Weather interpretation codes)
+const WMO_ICON: Record<number, { icon: string; label: string }> = {
+  0: { icon: '☀️', label: 'Clear' },
+  1: { icon: '🌤', label: 'Mostly clear' },
+  2: { icon: '⛅', label: 'Partly cloudy' },
+  3: { icon: '☁️', label: 'Overcast' },
+  45: { icon: '🌫', label: 'Fog' },
+  48: { icon: '🌫', label: 'Fog' },
+  51: { icon: '🌦', label: 'Light drizzle' },
+  53: { icon: '🌦', label: 'Drizzle' },
+  55: { icon: '🌦', label: 'Dense drizzle' },
+  61: { icon: '🌧', label: 'Light rain' },
+  63: { icon: '🌧', label: 'Rain' },
+  65: { icon: '🌧', label: 'Heavy rain' },
+  80: { icon: '🌧', label: 'Rain showers' },
+  81: { icon: '🌧', label: 'Rain showers' },
+  82: { icon: '🌧', label: 'Violent showers' },
+  95: { icon: '⛈', label: 'Thunderstorm' },
+  96: { icon: '⛈', label: 'Thunderstorm w/ hail' },
+  99: { icon: '⛈', label: 'Severe thunderstorm' }
+};
+
+function wmoIcon(code: number): { icon: string; label: string } {
+  return WMO_ICON[code] ?? { icon: '🌡', label: 'Unknown' };
+}
+
 function parseMagnitude(warningLevel: string | null): number | null {
   if (!warningLevel) return null;
   const match = warningLevel.match(/M\s*([\d.]+)/i);
   return match ? parseFloat(match[1]) : null;
+}
+
+interface HourlyForecastPoint {
+  hourLabel: string;
+  icon: string;
+  label: string;
+  temp: number;
+  precipProbability: number;
 }
 
 @Component({
@@ -87,6 +131,34 @@ function parseMagnitude(warningLevel: string | null): number | null {
             <span class="hint">Click anywhere on the map for today's weather outlook</span>
           </div>
           <div id="map" style="height: 500px; border-radius: 8px;"></div>
+
+          <button class="btn btn-outline hq-forecast-toggle" (click)="toggleHqForecast()">
+            🌤 {{ showHqForecast() ? 'Hide' : 'Show' }} Today's Forecast — DepEd Leyte Government Center
+          </button>
+
+          @if (showHqForecast()) {
+            <div class="hq-forecast-panel">
+              @if (hqForecastLoading()) {
+                <div class="hq-forecast-loading">Loading hourly forecast…</div>
+              } @else if (hqForecast().length === 0) {
+                <div class="hq-forecast-loading">Could not load forecast data.</div>
+              } @else {
+                <div class="hq-forecast-strip">
+                  @for (h of hqForecast(); track h.hourLabel) {
+                    <div class="hq-hour">
+                      <div class="hq-hour-time">{{ h.hourLabel }}</div>
+                      <div class="hq-hour-icon">{{ h.icon }}</div>
+                      <div class="hq-hour-temp">{{ h.temp }}°C</div>
+                      <div class="hq-hour-precip">💧{{ h.precipProbability }}%</div>
+                    </div>
+                  }
+                </div>
+                <div class="hq-forecast-note">
+                  Live hourly forecast (Open-Meteo) for Brgy. Candahug, Palo, Leyte — general public forecast data, not an official PAGASA advisory.
+                </div>
+              }
+            </div>
+          }
         </div>
 
         <div class="alerts-panel card">
@@ -149,6 +221,19 @@ function parseMagnitude(warningLevel: string | null): number | null {
 
     .main-row { display: grid; grid-template-columns: 2.2fr 1fr; gap: 1rem; align-items: start; }
     .map-panel { padding: 0.75rem; }
+    .hq-forecast-toggle { width: 100%; margin-top: 0.6rem; font-size: 0.8rem; padding: 0.5rem; }
+    .hq-forecast-panel { margin-top: 0.6rem; border-top: 1px solid var(--color-border); padding-top: 0.6rem; }
+    .hq-forecast-loading { text-align: center; color: var(--color-text-muted); font-size: 0.85rem; padding: 1rem; }
+    .hq-forecast-strip { display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 0.4rem; }
+    .hq-hour {
+      flex: 0 0 auto; width: 64px; text-align: center; padding: 0.5rem 0.3rem; border-radius: 8px;
+      background: var(--color-primary-light);
+    }
+    .hq-hour-time { font-size: 0.68rem; font-weight: 700; color: var(--color-text-muted); }
+    .hq-hour-icon { font-size: 1.4rem; margin: 0.15rem 0; }
+    .hq-hour-temp { font-size: 0.78rem; font-weight: 700; }
+    .hq-hour-precip { font-size: 0.68rem; color: var(--color-text-muted); }
+    .hq-forecast-note { font-size: 0.72rem; color: var(--color-text-muted); margin-top: 0.4rem; text-align: center; }
     .map-toolbar { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.6rem; flex-wrap: wrap; }
     .map-toolbar .btn { padding: 0.4rem 0.75rem; font-size: 0.8rem; }
     .radar-time { font-size: 0.78rem; color: var(--color-text-muted); font-weight: 600; }
@@ -191,6 +276,9 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   radarPlaying = signal(false);
   radarFrameLabel = signal('');
   expandedEventId = signal<string | null>(null);
+  showHqForecast = signal(false);
+  hqForecastLoading = signal(false);
+  hqForecast = signal<HourlyForecastPoint[]>([]);
   loadingAffected = signal(false);
   affectedSchoolsByEvent = signal<Map<string, AffectedSchool[]>>(new Map());
 
@@ -276,6 +364,43 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
       } finally {
         this.loadingAffected.set(false);
       }
+    }
+  }
+
+  async toggleHqForecast(): Promise<void> {
+    const opening = !this.showHqForecast();
+    this.showHqForecast.set(opening);
+    if (opening && this.hqForecast().length === 0) {
+      await this.loadHqForecast();
+    }
+  }
+
+  private async loadHqForecast(): Promise<void> {
+    this.hqForecastLoading.set(true);
+    try {
+      const res = await fetch(openMeteoHourlyUrl(DEPED_LEYTE_HQ.lat, DEPED_LEYTE_HQ.lon));
+      const data = await res.json();
+      const times: string[] = data.hourly?.time ?? [];
+      const temps: number[] = data.hourly?.temperature_2m ?? [];
+      const precip: number[] = data.hourly?.precipitation_probability ?? [];
+      const codes: number[] = data.hourly?.weather_code ?? [];
+
+      const points: HourlyForecastPoint[] = times.map((t, i) => {
+        const hour = new Date(t).getHours();
+        const { icon, label } = wmoIcon(codes[i]);
+        return {
+          hourLabel: hour === 0 ? '12AM' : hour < 12 ? `${hour}AM` : hour === 12 ? '12PM' : `${hour - 12}PM`,
+          icon,
+          label,
+          temp: Math.round(temps[i]),
+          precipProbability: precip[i] ?? 0
+        };
+      });
+      this.hqForecast.set(points);
+    } catch {
+      this.hqForecast.set([]);
+    } finally {
+      this.hqForecastLoading.set(false);
     }
   }
 
@@ -568,7 +693,13 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     // https://www.rainviewer.com/api/weather-maps-api.html (previously set to
     // 8 here, which was one level too high and caused the "zoom level not
     // supported" tile error).
-    const tileLayer = L.tileLayer(`${this.radarHost}${frame.path}/256/{z}/{x}/{y}/4/1_1.png`, {
+    // 512px tiles (vs 256) roughly double the pixel density for the same
+    // geographic coverage per tile — noticeably less blocky when the map is
+    // zoomed in, since the underlying radar data isn't being stretched as far.
+    // (RainViewer's own reference client does the same: same {z}/{x}/{y}
+    // scheme, just a bigger PNG per tile — no zoomOffset needed.)
+    const tileLayer = L.tileLayer(`${this.radarHost}${frame.path}/512/{z}/{x}/{y}/4/1_1.png`, {
+      tileSize: 512,
       opacity: 0.75,
       maxNativeZoom: 7,
       minNativeZoom: 0,
