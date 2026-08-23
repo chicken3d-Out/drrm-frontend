@@ -31,6 +31,11 @@ export const routes: Routes = [
           import('./features/rainfall-report/rainfall-report.component').then((m) => m.RainfallReportComponent)
       },
       {
+        path: 'weather-outlook',
+        loadComponent: () =>
+          import('./features/weather-outlook/weather-outlook.component').then((m) => m.WeatherOutlookComponent)
+      },
+      {
         path: 'announcements',
         loadComponent: () =>
           import('./features/announcements/announcements.component').then((m) => m.AnnouncementsComponent)

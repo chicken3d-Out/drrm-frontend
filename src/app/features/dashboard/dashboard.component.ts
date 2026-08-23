@@ -97,6 +97,9 @@ function parseMagnitude(warningLevel: string | null): number | null {
               <div class="legend-item"><span class="legend-line track-line"></span> Typhoon track (🌀 = current position)</div>
               <div class="legend-item"><span class="legend-ring"></span> Earthquake — click marker to see epicenter ripple (bigger = higher magnitude)</div>
             </div>
+            <div class="legend-note">
+              Roads, place names, and any other symbols on the base map itself come from the map provider, not from this system — click a colored marker above for details on that item specifically.
+            </div>
           </div>
         </div>
 
@@ -171,6 +174,7 @@ function parseMagnitude(warningLevel: string | null): number | null {
     .other-dot { background: #8a8a8a; }
     .legend-line { width: 20px; height: 3px; background: #d6006e; flex-shrink: 0; border-radius: 2px; }
     .legend-ring { width: 12px; height: 12px; border-radius: 50%; border: 2px solid #c0392b; flex-shrink: 0; }
+    .legend-note { font-size: 0.72rem; color: var(--color-text-muted); margin-top: 0.5rem; font-style: italic; }
     .map-toolbar { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.6rem; flex-wrap: wrap; }
     .map-toolbar .btn { padding: 0.4rem 0.75rem; font-size: 0.8rem; }
     .radar-time { font-size: 0.78rem; color: var(--color-text-muted); font-weight: 600; }
@@ -304,8 +308,18 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   private initMap(): void {
     // Centered on Leyte Province per spec section 38 (default map priority).
     this.map = L.map('map').setView([10.85, 124.85], 9);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors'
+    // CartoDB Positron (free, public, no API key) instead of standard
+    // OpenStreetMap tiles. Standard OSM bakes in its own small icons for
+    // peaks, landmarks, points of interest, etc. — unrelated to this app's
+    // data and not something we can attach a legend to, since we don't
+    // control what the tile provider renders. Positron is a clean light-gray
+    // base map (roads + place names only) designed for exactly this kind of
+    // data-overlay dashboard, so those unrelated symbols (including the
+    // "triangle" that had no explanation) don't appear in the first place.
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+      subdomains: 'abcd',
+      maxZoom: 19
     }).addTo(this.map);
 
     this.eventsLayer = L.layerGroup().addTo(this.map);
