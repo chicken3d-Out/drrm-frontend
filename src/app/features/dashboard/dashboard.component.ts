@@ -89,7 +89,7 @@ function parseMagnitude(warningLevel: string | null): number | null {
           <div id="map" style="height: 500px; border-radius: 8px;"></div>
 
           <div class="map-legend">
-            <div class="legend-title">MAP LEGEND</div>
+            <div class="legend-title">THIS APP'S MAP DATA</div>
             <div class="legend-grid">
               <div class="legend-item"><span class="legend-dot school-dot"></span> DepEd School</div>
               <div class="legend-item"><span class="legend-dot leyte-dot"></span> Leyte-priority alert</div>
@@ -97,8 +97,13 @@ function parseMagnitude(warningLevel: string | null): number | null {
               <div class="legend-item"><span class="legend-line track-line"></span> Typhoon track (🌀 = current position)</div>
               <div class="legend-item"><span class="legend-ring"></span> Earthquake — click marker to see epicenter ripple (bigger = higher magnitude)</div>
             </div>
+            <div class="legend-title base-map-title">BASE MAP SYMBOLS (from OpenStreetMap, not this system's data)</div>
+            <div class="legend-grid">
+              <div class="legend-item">🔺 Triangle = Volcano (real geographic feature)</div>
+              <div class="legend-item">Thin gray/black lines = Roads, rivers, or boundaries — <strong>not</strong> seismic fault lines</div>
+            </div>
             <div class="legend-note">
-              Roads, place names, and any other symbols on the base map itself come from the map provider, not from this system — click a colored marker above for details on that item specifically.
+              This base map does not include an active-fault-line layer — ask if you'd like one added using an official geological dataset (e.g. PHIVOLCS or GEM active fault data).
             </div>
           </div>
         </div>
@@ -166,6 +171,7 @@ function parseMagnitude(warningLevel: string | null): number | null {
     .hq-forecast-toggle { width: 100%; margin-top: 0.6rem; font-size: 0.8rem; padding: 0.5rem; }
     .map-legend { margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px solid var(--color-border); }
     .legend-title { font-size: 0.68rem; font-weight: 700; color: var(--color-text-muted); letter-spacing: 0.03em; margin-bottom: 0.5rem; }
+    .legend-title.base-map-title { margin-top: 0.75rem; }
     .legend-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.4rem 1rem; }
     .legend-item { display: flex; align-items: center; gap: 0.5rem; font-size: 0.78rem; color: var(--color-text-muted); }
     .legend-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; border: 1.5px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,0.15); }
@@ -308,18 +314,14 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   private initMap(): void {
     // Centered on Leyte Province per spec section 38 (default map priority).
     this.map = L.map('map').setView([10.85, 124.85], 9);
-    // CartoDB Positron (free, public, no API key) instead of standard
-    // OpenStreetMap tiles. Standard OSM bakes in its own small icons for
-    // peaks, landmarks, points of interest, etc. — unrelated to this app's
-    // data and not something we can attach a legend to, since we don't
-    // control what the tile provider renders. Positron is a clean light-gray
-    // base map (roads + place names only) designed for exactly this kind of
-    // data-overlay dashboard, so those unrelated symbols (including the
-    // "triangle" that had no explanation) don't appear in the first place.
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-      subdomains: 'abcd',
-      maxZoom: 19
+    // Standard OpenStreetMap tiles. (Previously swapped to a stripped-down
+    // basemap thinking its built-in symbols — like the triangle icon for
+    // natural=volcano features — were unrelated clutter. That was wrong:
+    // those are real geographic data, genuinely useful for a DRRM system,
+    // so standard OSM is back. The map legend below now explains what the
+    // base map's own symbols mean instead of hiding them.)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
     }).addTo(this.map);
 
     this.eventsLayer = L.layerGroup().addTo(this.map);
